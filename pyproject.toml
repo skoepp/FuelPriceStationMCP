@@ -1,0 +1,86 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fuel-price-mcp"
+version = "0.1.0"
+description = "MCP server for fetching fuel prices from Tankerkoenig API"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+    "mcp[cli]>=1.26.0",
+    "httpx>=0.28.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+]
+
+[project.scripts]
+fuel-price-mcp = "fuel_price_mcp.server:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.25.0",
+    "pytest-cov>=6.0.0",
+    "respx>=0.22.0",
+    "mypy>=1.14.0",
+    "ruff>=0.9.0",
+    "pre-commit>=4.0.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fuel_price_mcp"]
+
+[tool.ruff]
+src = ["src"]
+target-version = "py312"
+line-length = 99
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "S",     # bandit (security)
+    "B",     # flake8-bugbear
+    "A",     # flake8-builtins
+    "C4",    # flake8-comprehensions
+    "DTZ",   # flake8-datetimez
+    "T20",   # flake8-print
+    "SIM",   # flake8-simplify
+    "TCH",   # flake8-type-checking
+    "ANN",   # flake8-annotations
+    "PT",    # flake8-pytest-style
+    "RUF",   # ruff-specific rules
+]
+ignore = [
+    "S101",    # allow assert in tests
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "ANN"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+mypy_path = "src"
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "--cov=fuel_price_mcp --cov-report=term-missing --cov-fail-under=90"
+
+[tool.coverage.run]
+source = ["fuel_price_mcp"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.",
+]
