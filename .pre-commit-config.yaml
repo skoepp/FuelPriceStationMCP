@@ -23,7 +23,6 @@ repos:
           - pydantic>=2.10.0
           - pydantic-settings>=2.7.0
           - httpx>=0.28.0
-          - types-all
         args: [--config-file=pyproject.toml]
         pass_filenames: false
         entry: mypy src

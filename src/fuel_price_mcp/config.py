@@ -1,4 +1,13 @@
-"""Application configuration via pydantic-settings with .env loading."""
+"""Application configuration via pydantic-settings with .env loading.
+
+Two usage modes:
+- Local development (make dev): settings are loaded from a .env file in the
+  project root (CWD-relative). Set FUEL_MCP_DEMO_MODE=true there to use mock
+  data without hitting the real API.
+- MCP server (Claude Desktop etc.): the host passes FUEL_MCP_TANKERKOENIG_API_KEY
+  and other vars directly as process environment variables. No .env file is
+  needed or expected. Demo mode auto-activates when no API key is present.
+"""
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -10,6 +19,9 @@ class Settings(BaseSettings):
         env_prefix="FUEL_MCP_",
         env_file=".env",
         env_file_encoding="utf-8",
+        # Treat empty strings as unset so a missing env var in the MCP host
+        # config doesn't accidentally override a .env value or the default.
+        env_ignore_empty=True,
     )
 
     tankerkoenig_api_key: str = ""

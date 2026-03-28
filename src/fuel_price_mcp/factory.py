@@ -12,8 +12,11 @@ if TYPE_CHECKING:
 
 
 def create_client(settings: Settings) -> TankerkoenigClient | DemoClient:
-    """Create the appropriate client based on demo_mode setting."""
-    if settings.demo_mode:
+    """Create the appropriate client based on demo_mode setting.
+
+    Falls back to DemoClient automatically when no API key is configured.
+    """
+    if settings.demo_mode or not settings.tankerkoenig_api_key:
         from fuel_price_mcp.demo import DemoClient
 
         return DemoClient(scenario=settings.demo_scenario)

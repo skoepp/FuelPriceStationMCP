@@ -42,7 +42,7 @@ def _get_client() -> TankerkoenigClient | DemoClient:
     return _client
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore[misc]
 async def search_fuel_prices(
     lat: float,
     lng: float,
