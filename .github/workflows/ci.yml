@@ -27,7 +27,14 @@ jobs:
           enable-cache: true
 
       - name: Set up Python ${{ matrix.python-version }}
+        if: ${{ !matrix.experimental }}
         run: uv python install ${{ matrix.python-version }}
+
+      - name: Set up Python ${{ matrix.python-version }} (dev)
+        if: ${{ matrix.experimental }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: uv sync
