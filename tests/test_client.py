@@ -77,3 +77,6 @@ class TestSearchStations:
         await client.search_stations(lat=52.52, lng=13.405, radius_km=10, fuel_type="e10")
         request = route.calls[0].request
         assert "sort=" not in str(request.url)
+
+    async def test_aclose(self, client: TankerkoenigClient):
+        await client.aclose()

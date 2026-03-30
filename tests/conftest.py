@@ -2,20 +2,9 @@
 
 import pytest
 
-import fuel_price_mcp.server as _server_module
 from fuel_price_mcp.config import Settings
 from fuel_price_mcp.models import Station
 from tests.fixtures.api_responses import make_station
-
-
-@pytest.fixture(autouse=True)
-def _reset_server_cache():
-    """Reset cached settings and client between tests."""
-    _server_module._settings = None
-    _server_module._client = None
-    yield
-    _server_module._settings = None
-    _server_module._client = None
 
 
 @pytest.fixture

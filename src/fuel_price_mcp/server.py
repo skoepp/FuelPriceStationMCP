@@ -1,13 +1,16 @@
 """FastMCP server with fuel price search tool."""
 
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.session import ServerSession
 from pydantic import ValidationError
 
-from fuel_price_mcp.client import TankerkoenigClient
-from fuel_price_mcp.config import Settings, get_settings
-from fuel_price_mcp.demo import DemoClient
+from fuel_price_mcp.config import get_settings
 from fuel_price_mcp.exceptions import FuelPriceMCPError, NoStationsFoundError
 from fuel_price_mcp.factory import create_client
 from fuel_price_mcp.filters import (
@@ -18,28 +21,38 @@ from fuel_price_mcp.filters import (
 from fuel_price_mcp.logging import setup_logging
 from fuel_price_mcp.models import FuelSearchRequest, StationResult
 
+if TYPE_CHECKING:
+    from fuel_price_mcp.client import TankerkoenigClient
+    from fuel_price_mcp.config import Settings
+    from fuel_price_mcp.demo import DemoClient
+
 logger = logging.getLogger("fuel_price_mcp.server")
 
-mcp = FastMCP("FuelPriceStation")
 
-_settings: Settings | None = None
-_client: TankerkoenigClient | DemoClient | None = None
+@dataclass
+class AppContext:
+    """Application state managed by the server lifespan."""
 
-
-def _get_settings() -> Settings:
-    """Return cached settings, creating on first call."""
-    global _settings
-    if _settings is None:
-        _settings = get_settings()
-    return _settings
+    settings: "Settings"
+    client: "TankerkoenigClient | DemoClient"
 
 
-def _get_client() -> TankerkoenigClient | DemoClient:
-    """Return cached client, creating on first call."""
-    global _client
-    if _client is None:
-        _client = create_client(_get_settings())
-    return _client
+@asynccontextmanager
+async def lifespan(_server: "FastMCP[AppContext]") -> AsyncIterator["AppContext"]:
+    """Initialize settings and client on startup, clean up on shutdown."""
+    settings = get_settings()
+    setup_logging(settings.log_level)
+    client = create_client(settings)
+    if settings.demo_mode or not settings.tankerkoenig_api_key:
+        logger.info("Demo mode active, scenario: %s", settings.demo_scenario)
+    try:
+        yield AppContext(settings=settings, client=client)
+    finally:
+        if hasattr(client, "aclose"):
+            await client.aclose()
+
+
+mcp = FastMCP("FuelPriceStation", lifespan=lifespan)
 
 
 @mcp.tool()
@@ -49,6 +62,7 @@ async def search_fuel_prices(
     radius_km: float | None = None,
     fuel_type: str = "e10",
     max_results: int = 10,
+    ctx: Context[ServerSession, AppContext, None] | None = None,
 ) -> list[StationResult]:
     """Search for fuel stations near given coordinates, sorted by lowest price.
 
@@ -58,14 +72,19 @@ async def search_fuel_prices(
         radius_km: Search radius in kilometers (default from settings, max 25).
         fuel_type: Fuel type to sort by — "e5", "e10", or "diesel" (default "e10").
         max_results: Maximum number of stations to return (default 10, max 50).
+        ctx: MCP context (injected automatically by FastMCP).
 
     Returns:
         List of station results with name, address, distance, and fuel prices.
     """
-    settings = _get_settings()
+    if ctx is None:
+        msg = "Context not available"
+        raise FuelPriceMCPError(msg)
+
+    app: AppContext = ctx.request_context.lifespan_context
 
     if radius_km is None:
-        radius_km = settings.default_radius_km
+        radius_km = app.settings.default_radius_km
 
     try:
         request = FuelSearchRequest(
@@ -79,10 +98,8 @@ async def search_fuel_prices(
         msg = f"Invalid parameters: {exc}"
         raise FuelPriceMCPError(msg) from exc
 
-    client = _get_client()
-
     try:
-        response = await client.search_stations(
+        response = await app.client.search_stations(
             lat=request.lat,
             lng=request.lng,
             radius_km=request.radius_km,
@@ -124,10 +141,6 @@ async def search_fuel_prices(
 
 def main() -> None:
     """Entry point for the MCP server."""
-    settings = _get_settings()
-    setup_logging(settings.log_level)
-    if settings.demo_mode:
-        logger.info("Demo mode active, scenario: %s", settings.demo_scenario)
     mcp.run()
 
 

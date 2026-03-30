@@ -18,10 +18,17 @@ class TankerkoenigClient:
     """Async client for the Tankerkoenig fuel price API."""
 
     def __init__(self, settings: Settings) -> None:
-        self._settings = settings
         self._base_url = settings.tankerkoenig_base_url
         self._api_key = settings.tankerkoenig_api_key
-        self._timeout = httpx.Timeout(settings.request_timeout_seconds)
+        transport = httpx.AsyncHTTPTransport(retries=3)
+        self._client = httpx.AsyncClient(
+            timeout=httpx.Timeout(settings.request_timeout_seconds),
+            transport=transport,
+        )
+
+    async def aclose(self) -> None:
+        """Close the underlying HTTP client."""
+        await self._client.aclose()
 
     async def search_stations(
         self,
@@ -60,13 +67,10 @@ class TankerkoenigClient:
         logger.info("Requesting stations at lat=%s lng=%s radius=%skm", lat, lng, radius_km)
 
         try:
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.get(url, params=params)
-                response.raise_for_status()
+            response = await self._client.get(url, params=params)
+            response.raise_for_status()
         except httpx.TimeoutException as exc:
-            raise TankerkoenigTimeoutError(
-                f"Tankerkoenig API request timed out after {self._timeout.read}s"
-            ) from exc
+            raise TankerkoenigTimeoutError("Tankerkoenig API request timed out") from exc
         except httpx.HTTPStatusError as exc:
             raise TankerkoenigAPIError(
                 f"Tankerkoenig API returned HTTP {exc.response.status_code}",

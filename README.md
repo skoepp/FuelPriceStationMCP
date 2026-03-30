@@ -121,15 +121,37 @@ FUEL_MCP_DEMO_MODE=true FUEL_MCP_DEMO_SCENARIO=empty make run
 - **Agent integration testing**: verify an agent correctly interprets structured tool responses
 - **Evals**: set a scenario, run the agent, assert on deterministic output (prices never change)
 
-## Claude Desktop / IDE Configuration
+## MCP Host Configuration
 
-Point the MCP host directly at the venv binary and pass the API key via `env`. No `.env` file is needed — the key is supplied by the host config.
+Add this server to any MCP host that supports stdio transport. Use `uv --directory` so the project resolves correctly regardless of the host's working directory. The `.env` file in the project root is auto-loaded by pydantic-settings, so the `env` block is optional if your `.env` already contains the API key.
+
+### Option 1: Claude Code CLI
+
+Add the server directly from the terminal:
+
+```bash
+# Add to the current project (writes .mcp.json)
+claude mcp add fuel-prices -- uv --directory /path/to/FuelPriceStationMCP run fuel-price-mcp
+
+# Add globally (writes ~/.claude/settings.json)
+claude mcp add --global fuel-prices -- uv --directory /path/to/FuelPriceStationMCP run fuel-price-mcp
+
+# With API key as environment variable
+claude mcp add -e FUEL_MCP_TANKERKOENIG_API_KEY=your-api-key-here fuel-prices \
+  -- uv --directory /path/to/FuelPriceStationMCP run fuel-price-mcp
+```
+
+### Option 2: Project-level `.mcp.json` (Claude Code)
+
+Place a `.mcp.json` in any project where you want the fuel price tool available:
 
 ```json
 {
   "mcpServers": {
     "fuel-prices": {
-      "command": "/path/to/FuelPriceStationMCP/.venv/bin/fuel-price-mcp",
+      "type": "stdio",
+      "command": "uv",
+      "args": ["--directory", "/path/to/FuelPriceStationMCP", "run", "fuel-price-mcp"],
       "env": {
         "FUEL_MCP_TANKERKOENIG_API_KEY": "your-api-key-here"
       }
@@ -138,15 +160,35 @@ Point the MCP host directly at the venv binary and pass the API key via `env`. N
 }
 ```
 
-Alternatively, using `uv run` if the venv is not pre-built:
+### Option 3: Global `settings.json` (Claude Code)
+
+Add to `~/.claude/settings.json` to make the server available in all Claude Code sessions:
+
+```json
+{
+  "mcpServers": {
+    "fuel-prices": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["--directory", "/path/to/FuelPriceStationMCP", "run", "fuel-price-mcp"],
+      "env": {
+        "FUEL_MCP_TANKERKOENIG_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+### Option 4: Claude Desktop
+
+Add to your `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "fuel-prices": {
       "command": "uv",
-      "args": ["run", "fuel-price-mcp"],
-      "cwd": "/path/to/FuelPriceStationMCP",
+      "args": ["--directory", "/path/to/FuelPriceStationMCP", "run", "fuel-price-mcp"],
       "env": {
         "FUEL_MCP_TANKERKOENIG_API_KEY": "your-api-key-here"
       }

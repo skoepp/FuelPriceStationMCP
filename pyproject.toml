@@ -24,8 +24,8 @@ dev = [
     "pytest-asyncio>=0.25.0",
     "pytest-cov>=6.0.0",
     "respx>=0.22.0",
-    "mypy>=1.14.0",
-    "ruff>=0.9.0",
+    "mypy>=1.19.0",
+    "ruff>=0.15.0",
     "pre-commit>=4.0.0",
 ]
 
@@ -34,7 +34,7 @@ packages = ["src/fuel_price_mcp"]
 
 [tool.ruff]
 src = ["src"]
-target-version = "py312"
+target-version = "py313"
 line-length = 99
 
 [tool.ruff.lint]
@@ -66,7 +66,7 @@ ignore = [
 
 [tool.mypy]
 strict = true
-python_version = "3.12"
+python_version = "3.13"
 mypy_path = "src"
 plugins = ["pydantic.mypy"]
 [tool.pytest.ini_options]

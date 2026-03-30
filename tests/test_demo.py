@@ -1,6 +1,6 @@
 """Tests for demo client, factory, and demo mode integration."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -9,7 +9,7 @@ from fuel_price_mcp.config import Settings
 from fuel_price_mcp.demo import SCENARIOS, DemoClient
 from fuel_price_mcp.exceptions import NoStationsFoundError
 from fuel_price_mcp.factory import create_client
-from fuel_price_mcp.server import search_fuel_prices
+from fuel_price_mcp.server import AppContext, search_fuel_prices
 
 
 class TestDemoClient:
@@ -55,28 +55,34 @@ class TestFactory:
         assert isinstance(client, TankerkoenigClient)
 
 
-class TestDemoIntegration:
-    @patch("fuel_price_mcp.server.get_settings")
-    async def test_full_pipeline_with_demo(self, mock_settings):
-        mock_settings.return_value = Settings(demo_mode=True, demo_scenario="default")
+def _demo_ctx(scenario: str = "default") -> MagicMock:
+    """Create a mock MCP Context with a real DemoClient."""
+    settings = Settings(demo_mode=True, demo_scenario=scenario)
+    app = AppContext(settings=settings, client=DemoClient(scenario=scenario))
+    ctx = MagicMock()
+    ctx.request_context.lifespan_context = app
+    return ctx
 
-        results = await search_fuel_prices(lat=52.52, lng=13.405)
+
+class TestDemoIntegration:
+    async def test_full_pipeline_with_demo(self):
+        ctx = _demo_ctx("default")
+
+        results = await search_fuel_prices(lat=52.52, lng=13.405, ctx=ctx)
 
         assert isinstance(results, list)
         assert len(results) > 0
         assert all(hasattr(r, "name") for r in results)
         assert all(hasattr(r, "e10") for r in results)
 
-    @patch("fuel_price_mcp.server.get_settings")
-    async def test_empty_scenario_raises_no_stations(self, mock_settings):
-        mock_settings.return_value = Settings(demo_mode=True, demo_scenario="empty")
+    async def test_empty_scenario_raises_no_stations(self):
+        ctx = _demo_ctx("empty")
 
         with pytest.raises(NoStationsFoundError):
-            await search_fuel_prices(lat=52.52, lng=13.405)
+            await search_fuel_prices(lat=52.52, lng=13.405, ctx=ctx)
 
-    @patch("fuel_price_mcp.server.get_settings")
-    async def test_all_closed_raises_no_stations(self, mock_settings):
-        mock_settings.return_value = Settings(demo_mode=True, demo_scenario="all_closed")
+    async def test_all_closed_raises_no_stations(self):
+        ctx = _demo_ctx("all_closed")
 
         with pytest.raises(NoStationsFoundError):
-            await search_fuel_prices(lat=52.52, lng=13.405)
+            await search_fuel_prices(lat=52.52, lng=13.405, ctx=ctx)
