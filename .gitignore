@@ -34,4 +34,4 @@ htmlcov/
 Thumbs.db
 
 # Project specific
-PROJECT.md
+PROJECT*.md
